@@ -1,11 +1,11 @@
-<div align="center">
+# Spec - iOS App
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+Compare AI models side by side.
 
-  <h1>Built with AI Studio</h2>
+## Directory Structure
+- `ios/`: Contains the Swift 5.9+ / SwiftUI iOS App source.
+- `firebase/`: Contains the Firebase Functions backend (Node 20, TypeScript).
+- `submission/`: Contains the App Store Connect submission materials, SEO copy, and demo seeding script.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
-
-  <a href="https://aistudio.google.com/apps">Start building</a>
-
-</div>
+## Setup
+Refer to the First Run Checklist provided in the agent's output.

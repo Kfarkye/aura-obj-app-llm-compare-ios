@@ -1,0 +1,48 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /prompts/{promptId} {
+      // Rankings need public reads to allow anyone to read prompt/responses history potentially, 
+      // but spec says: read all (rankings need public reads).
+      allow read: if true;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // Allow delete own only
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      // No updates to prompts supported via client
+      
+      match /responses/{responseId} {
+        // Read all, write only from functions (which bypasses rules entirely)
+        allow read: if true;
+      }
+    }
+
+    match /ratings/{ratingId} {
+      allow read: if true;
+      // Doc ID format enforced implicitly or explicitly inside the app. Check auth matches:
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      
+      // Prevent updates older than 5 minutes (300 seconds)
+      allow update: if request.auth != null 
+                    && resource.data.userId == request.auth.uid
+                    && request.resource.data.userId == request.auth.uid
+                    && request.time < resource.data.createdAt + duration.value(300, 's');
+      
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    match /rankings/{model} {
+      allow read: if true;
+      // Written only by functions, which bypass rules
+    }
+  }
+}
