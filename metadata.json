@@ -1,6 +1,12 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Spec",
+  "description": "Compare AI models side by side.",
+  "platform": "iOS",
+  "bundle_id": "com.spec.app",
+  "capabilities": ["Authentication", "Firestore", "Functions"],
+  "privacy_surface": "Owner-only data by default for prompts and responses",
+  "auth_methods": ["Apple", "Email", "Anonymous", "Google"],
+  "backend_services": ["Firebase Auth", "Firestore", "Cloud Functions"],
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

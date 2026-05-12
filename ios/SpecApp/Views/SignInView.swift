@@ -28,11 +28,9 @@ struct SignInView: View {
             } else {
                 VStack(spacing: SpecSpacing.md) {
                     SignInWithAppleButton(.signIn) { request in
-                        // Apple Sign In is mocked in v1 UI for simplicity if true Apple Auth isn't wired.
-                        // For a real prod app, delegate to Firebase Auth OAuth provider logic here.
-                        // TODO: Kofi, Wire real Apple credentials to Firebase Auth.
+                        authService.handleSignInWithAppleRequest(request)
                     } onCompletion: { result in
-                        // Handle real completion here
+                        authService.handleSignInWithAppleCompletion(result)
                     }
                     .signInWithAppleButtonStyle(.black)
                     .frame(height: 50)

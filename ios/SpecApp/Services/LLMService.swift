@@ -20,10 +20,20 @@ class LLMService {
             throw UserFacingError.notAuthenticated
         }
         
-        self.isLoading = true
-        defer { self.isLoading = false }
+        let db = Firestore.firestore()
+        let promptRef = db.collection("prompts").document()
+        let promptId = promptRef.documentID
+        
+        // Optomistic Document Creation
+        try await promptRef.setData([
+            "userId": userId,
+            "text": text,
+            "createdAt": FieldValue.serverTimestamp(),
+            "flagged": false
+        ])
         
         var data: [String: Any] = [
+            "promptId": promptId,
             "prompt": text,
             "userId": userId
         ]
@@ -31,21 +41,24 @@ class LLMService {
             data["useOwnKeys"] = keys
         }
         
-        do {
-            let result = try await withTimeout(seconds: 30) {
-                try await self.functions.httpsCallable("llmProxy").call(data)
+        Task {
+            do {
+                _ = try await self.functions.httpsCallable("llmProxy").call(data)
+            } catch {
+                print("LlmProxy returned error: \(error.localizedDescription)")
+                try? await db.collection("prompts").document(promptId).collection("responses").document("error").setData([
+                    "model": "error",
+                    "userId": userId,
+                    "error": true,
+                    "text": "Failed to generate responses. Please try again or check your rate limits."
+                ])
             }
-            
-            // Note: v1 requires llmProxy to create Prompt & Responses, so we just get promptId.
-            guard let responseData = result?.data as? [String: Any],
-                  let promptId = responseData["promptId"] as? String else {
-                throw UserFacingError.networkError
-            }
-            
-            return promptId
-        } catch {
-            throw UserFacingError.generationFailed
         }
+        
+        // Add a slight artificial delay so UI handles the initial push cleanly without jarring
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        
+        return promptId
     }
 }
 

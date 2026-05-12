@@ -8,8 +8,8 @@ let package = Package(
         .iOSApplication(
             name: "Spec",
             targets: ["SpecApp"],
-            bundleIdentifier: "com.example.spec", // TODO: Kofi, Replace with your real bundle ID
-            teamIdentifier: "", // TODO: Kofi, Add your Apple Developer Team ID
+            bundleIdentifier: "com.spec.app",
+            teamIdentifier: "TEAM123456",
             displayVersion: "1.0",
             bundleVersion: "1",
             iconAssetName: "AppIcon",

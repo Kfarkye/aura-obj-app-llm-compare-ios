@@ -5,7 +5,7 @@ Verify every item on this list before clicking "Submit for Review" in App Store 
 ## Xcode & Build Settings
 - [ ] Bundle ID is definitively set, matches Firebase Auth, and matches the Apple Developer Portal.
 - [ ] Team ID is set in Xcode's Signing tab.
-- [ ] **Sign in with Apple** capability is explicitly enabled in both Xcode signing settings AND the Apple Developer Portal.
+- [ ] **Sign in with Apple** capability is explicitly enabled in both Xcode signing settings AND the Apple Developer Portal. The app provides a fully functional native Apple Sign-In flow.
 - [ ] `AppIcon` is correctly set at all sizes including the mandatory 1024x1024 icon.
 - [ ] Launch screen renders correctly (light theme, Spec mark centered).
 

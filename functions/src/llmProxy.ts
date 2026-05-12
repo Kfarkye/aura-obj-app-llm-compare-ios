@@ -10,8 +10,13 @@ export const llmProxy = functions.https.onCall(async (data, context) => {
   }
 
   const userId = context.auth.uid;
+  const promptId = data.promptId;
   const promptText = data.prompt;
   const useOwnKeys = data.useOwnKeys || {};
+
+  if (!promptId || typeof promptId !== 'string') {
+    throw new functions.https.HttpsError('invalid-argument', 'promptId is required.');
+  }
 
   if (!promptText || typeof promptText !== 'string' || promptText.trim().length === 0) {
     throw new functions.https.HttpsError('invalid-argument', 'Prompt text is required.');
@@ -34,16 +39,15 @@ export const llmProxy = functions.https.onCall(async (data, context) => {
     usageRef.set({ comparisonsUsed: admin.firestore.FieldValue.increment(1) }, { merge: true });
   }
 
-  // 2. Create the prompt document
-  const promptRef = db.collection('prompts').doc();
+  // 2. We skip creating the prompt document because the iOS client creates it to allow immediate local navigation.
+  // We just wait a safe moment if moderation triggers, or rely on client's flagged status.
+  const promptRef = db.collection('prompts').doc(promptId);
   await promptRef.set({
     userId,
     text: promptText,
     flagged: false, // Moderated by trigger later if needed, but we proceed optimistically or wait?
     createdAt: admin.firestore.FieldValue.serverTimestamp()
-  });
-
-  const promptId = promptRef.id;
+  }, { merge: true });
 
   // We return the promptId immediately and process the LLMs asynchronously
   // In Cloud Functions Gen 1 we shouldn't fully abandon promises if we want them to finish,
@@ -78,9 +82,9 @@ export const llmProxy = functions.https.onCall(async (data, context) => {
       if (!res.ok) throw new Error(`OpenAI error: ${res.status}`);
       const data: any = await res.json();
       const text = data.choices[0].message.content;
-      await saveResponse(promptId, 'openai', text, Date.now() - start);
+      await saveResponse(promptId, userId, 'openai', text, Date.now() - start);
     } catch (err: any) {
-      await saveError(promptId, 'openai', err.message);
+      await saveError(promptId, userId, 'openai', err.message);
     }
   };
 
@@ -105,9 +109,9 @@ export const llmProxy = functions.https.onCall(async (data, context) => {
       if (!res.ok) throw new Error(`Anthropic error: ${res.status}`);
       const data: any = await res.json();
       const text = data.content[0].text;
-      await saveResponse(promptId, 'anthropic', text, Date.now() - start);
+      await saveResponse(promptId, userId, 'anthropic', text, Date.now() - start);
     } catch (err: any) {
-      await saveError(promptId, 'anthropic', err.message);
+      await saveError(promptId, userId, 'anthropic', err.message);
     }
   };
 
@@ -128,23 +132,24 @@ export const llmProxy = functions.https.onCall(async (data, context) => {
       if (!res.ok) throw new Error(`Gemini error: ${res.status}`);
       const data: any = await res.json();
       const text = data.candidates[0].content.parts[0].text;
-      await saveResponse(promptId, 'gemini', text, Date.now() - start);
+      await saveResponse(promptId, userId, 'gemini', text, Date.now() - start);
     } catch (err: any) {
-      await saveError(promptId, 'gemini', err.message);
+      await saveError(promptId, userId, 'gemini', err.message);
     }
   };
 
-  // Run in parallel
-  Promise.allSettled([fetchOpenAI(), fetchAnthropic(), fetchGemini()]);
+  // Run in parallel and await completion for determinism
+  await Promise.allSettled([fetchOpenAI(), fetchAnthropic(), fetchGemini()]);
 
   return { promptId };
 });
 
-async function saveResponse(promptId: string, model: string, text: string, latencyMs: number) {
+async function saveResponse(promptId: string, userId: string, model: string, text: string, latencyMs: number) {
   try {
     const ref = db.collection(`prompts/${promptId}/responses`).doc(model);
     await ref.set({
       model,
+      userId,
       text,
       latencyMs,
       error: false,
@@ -155,11 +160,12 @@ async function saveResponse(promptId: string, model: string, text: string, laten
   }
 }
 
-async function saveError(promptId: string, model: string, errorMessage: string) {
+async function saveError(promptId: string, userId: string, model: string, errorMessage: string) {
   try {
     const ref = db.collection(`prompts/${promptId}/responses`).doc(model);
     await ref.set({
       model,
+      userId,
       text: "Couldn't reach this model. The other two are still working.",
       latencyMs: 0,
       error: true,
